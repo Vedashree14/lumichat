@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>CHAT-APP</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="container center">
+    <h1>LumiChat</h1>
+    <div class="buttons">
+      <a href="signup.html" class="btn">Sign Up</a>
+      <a href="login.html" class="btn">Login</a>
+    </div>
+  </div>
+</body>
+<style>
+    body {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        background-image: url('assets/index.jpg');
+        height: 100vh;
+        margin: 0;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+
+    .container.center {
+        text-align: center;
+        background-color: rgba(255, 255, 255, 1); /* Translucent white background */
+        padding: 50px 30px;
+        border-radius: 25px;
+        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2);
+        width: 100%;
+        max-width: 700px; /* Increased size of the box */
+        height: 35%;
+    }
+
+    .container.center h1 {
+        font-size: 4rem;
+        font-family:'Courier New', Courier, monospace;
+        font-weight: 1000;
+        margin-bottom: 10%;
+        color: #009688;
+    }
+
+    /* Buttons container */
+    .buttons {
+        display: flex;
+        justify-content: space-between; /* Side by side buttons */
+        gap: 40px;
+        width: 80%;
+    }
+
+    a.btn {
+        display: inline-block;
+        text-decoration: none;
+        background-color: #009688;
+        color: white;
+        padding: 12px;
+        font-size: 1.1rem;
+        font-weight: bold;
+        border-radius: 10px;
+        transition: background-color 0.3s ease, transform 0.2s ease;
+        width: 60%; /* Adjust width for side-by-side layout */
+    }
+
+    a.btn:hover {
+        background-color: #00796b;
+        transform: translateY(-2px);
+    }
+
+</style>
+</html>
