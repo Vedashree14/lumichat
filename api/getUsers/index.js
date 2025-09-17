@@ -3,7 +3,12 @@ const { verifyToken } = require("../shared/auth");
 
 module.exports = async function (context, req) {
     try {
-        verifyToken(req); // Just verify that the user is logged in
+        try {
+            verifyToken(req); // First, verify that the user is logged in
+        } catch (authError) {
+            context.res = { status: 401, body: { message: authError.message } };
+            return;
+        }
 
         const query = "SELECT c.id, c.email, c.name FROM c"; // Don't send passwords to the client
         const { resources } = await usersContainer.items.query(query).fetchAll();
@@ -12,10 +17,11 @@ module.exports = async function (context, req) {
             status: 200,
             body: resources
         };
-    } catch (err) {
+    } catch (serverError) {
+        context.log.error("getUsers Error:", serverError); // Log the real error
         context.res = {
-            status: 401,
-            body: err.message
+            status: 500, // This should be a server error, not an auth error
+            body: { message: "An internal server error occurred." }
         };
     }
 
