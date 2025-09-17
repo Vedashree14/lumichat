@@ -7,7 +7,7 @@ module.exports = async function (context, req) {
     if (!email || !password || !name) {
         context.res = {
             status: 400,
-            body: { error: "Missing fields" }
+            body: { message: "Missing fields" }
         };
         return;
     }
@@ -21,7 +21,7 @@ module.exports = async function (context, req) {
     if (resources.length > 0) {
         context.res = {
             status: 409,
-            body: { error: "User already exists" }
+            body: { message: "User already exists" }
         };
         return;
     }

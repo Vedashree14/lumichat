@@ -10,7 +10,7 @@ function verifyToken(req) {
     const authHeader = req.headers['authorization'];
 
     if (!authHeader) {
-        throw new Error('No token, authorization denied');
+        throw new Error('Authorization header is missing, authorization denied');
     }
 
     const token = authHeader.split(' ')[1];
@@ -22,7 +22,8 @@ function verifyToken(req) {
     try {
         return jwt.verify(token, process.env.JWT_SECRET);
     } catch (err) {
-        throw new Error('Token is not valid');
+        console.error("JWT Verification Error:", err.message);
+        throw new Error(`Token is not valid. Reason: ${err.message}`);
     }
 }
 

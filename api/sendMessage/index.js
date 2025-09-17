@@ -10,7 +10,7 @@ module.exports = async function (context, req) {
         if (!receiver || (!message && !fileUrl)) {
             context.res = {
                 status: 400,
-                body: "Missing required fields"
+                body: { message: "Missing required fields" }
             };
             return;
         }
@@ -55,7 +55,7 @@ module.exports = async function (context, req) {
     } catch (err) {
         context.res = {
             status: 401,
-            body: err.message
+            body: { message: err.message }
         };
     }
 };

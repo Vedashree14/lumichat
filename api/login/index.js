@@ -9,7 +9,7 @@ module.exports = async function (context, req) {
         if (!email || !password) {
             context.res = {
                 status: 400,
-                body: "Missing fields"
+                body: { message: "Missing email or password." }
             };
             return;
         }
@@ -24,7 +24,7 @@ module.exports = async function (context, req) {
         if (resources.length === 0) {
             context.res = {
                 status: 401, // Use 401 for security to prevent user enumeration
-                body: "Invalid credentials"
+                body: { message: "Invalid credentials." }
             };
             return;
         }
@@ -57,7 +57,7 @@ module.exports = async function (context, req) {
         if (!isMatch) {
             context.res = {
                 status: 401,
-                body: "Invalid credentials"
+                body: { message: "Invalid credentials." }
             };
             return;
         }
@@ -84,7 +84,7 @@ module.exports = async function (context, req) {
         context.log.error("Login Error:", error);
         context.res = {
             status: 500,
-            body: "An error occurred during the login process."
+            body: { message: "An error occurred during the login process." }
         };
     }
 };

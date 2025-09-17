@@ -10,7 +10,7 @@ module.exports = async function (context, req) {
         if (!receiver) {
             context.res = {
                 status: 400,
-                body: "Missing receiver"
+                body: { message: "Missing receiver" }
             };
             return;
         }
@@ -29,7 +29,7 @@ module.exports = async function (context, req) {
     } catch (err) {
         context.res = {
             status: 401,
-            body: err.message
+            body: { message: err.message }
         };
     }
 };

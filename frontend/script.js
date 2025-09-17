@@ -69,7 +69,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 sessionStorage.setItem("chatToken", data.token);
                 window.location.href = "chat.html";
             } else {
-                showError(data.body || data.message || "Login failed.");
+                showError(data.message || "Login failed.");
             }
         });
     }

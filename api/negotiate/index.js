@@ -11,7 +11,7 @@ module.exports = async function (context, req, connectionInfo) {
 
         // Security check: Ensure the user in the token is the one requesting the connection
         if (tokenUserId !== headerUserId) {
-            context.res = { status: 401, body: "User ID mismatch." };
+            context.res = { status: 401, body: { message: "User ID mismatch." } };
             return;
         }
 
@@ -22,7 +22,7 @@ module.exports = async function (context, req, connectionInfo) {
     } catch (err) {
         context.res = {
             status: 401,
-            body: err.message
+            body: { message: err.message }
         };
     }
 };
