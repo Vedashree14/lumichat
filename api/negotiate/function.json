@@ -13,11 +13,12 @@
         "name": "res"
       },
       {
-        "type": "signalR",
-        "name": "signalRMessages",
+        "type": "signalRConnectionInfo",
+        "name": "connectionInfo",
         "hubName": "chat",
+        "userId": "{headers.x-user-id}",
         "connectionStringSetting": "AZURE_SIGNALR_CONNECTION_STRING",
-        "direction": "out"
+        "direction": "in"
       }
     ]
   }

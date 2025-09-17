@@ -1,9 +1,5 @@
-const { CosmosClient } = require("@azure/cosmos");
-
-const connectionString = process.env.COSMOS_DB_CONNECTION_STRING;  // secure via local.settings.json
-const client = new CosmosClient(connectionString);
-const database = client.database("chatapp");
-const container = database.container("users");
+const bcrypt = require("bcryptjs");
+const { usersContainer } = require("../shared/cosmosClient");
 
 module.exports = async function (context, req) {
     const { email, password, name } = req.body;
@@ -17,7 +13,7 @@ module.exports = async function (context, req) {
     }
 
     const query = `SELECT * FROM c WHERE c.email = @email`;
-    const { resources } = await container.items.query({
+    const { resources } = await usersContainer.items.query({
         query,
         parameters: [{ name: "@email", value: email }]
     }).fetchAll();
@@ -30,14 +26,18 @@ module.exports = async function (context, req) {
         return;
     }
 
+    // Hashing the password
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+
     const newUser = {
         id: email,
         email,
-        password,
+        password: hashedPassword,
         name
     };
 
-    await container.items.create(newUser);
+    await usersContainer.items.create(newUser);
 
     context.res = {
         status: 200,

@@ -10,20 +10,26 @@
   <div class="container">
     <header>
       <h1>LumiChat</h1>
+      <button id="logoutButton" class="logout-button">Logout</button>
     </header>
     <div id="chatHeader">Select a User to Chat</div>
     <div class="chat-layout">
       <div id="userList" class="user-list"></div>
       <div class="chat-window">
-        <div id="chatMessages" class="chat-messages"></div>
-        <div class="message-input-area">
+        <div id="chat-placeholder" class="chat-placeholder">
+          <h3>Select a user to start a conversation</h3>
+        </div>
+        <div id="chatMessages" class="chat-messages" style="display: none;"></div>
+        <div id="typingIndicator" class="typing-indicator" style="display: none;"></div>
+        <div class="message-input-area" style="display: none;">
           <input type="text" id="messageInput" placeholder="Type a message..." />
           <input type="file" id="fileInput" />
-          <button id="sendButton" onclick="sendMessage()">Send</button>
+          <button id="sendButton">Send</button>
         </div>
       </div>
     </div>
   </div>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/6.0.1/signalr.min.js"></script>
   <script src="script.js"></script>
 </body>
 
@@ -56,12 +62,17 @@
     }
 
     header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
       background-color: #00cf98;
       color: white;
       padding: 20px;
-      text-align: center;
       border-top-left-radius: 16px;
       border-top-right-radius: 16px;
+    }
+
+    header h1{
       font-size: 1.8rem;
       font-weight: bold;
     }
@@ -110,8 +121,17 @@
       flex: 1;
       display: flex;
       flex-direction: column;
-      justify-content: space-between;
     }
+
+    .chat-placeholder {
+      flex: 1;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      color: #999;
+      background-color: #fafafa;
+    }
+
 
     .chat-messages {
       flex: 1;
@@ -174,8 +194,7 @@
     #sendButton {
       background-color: #009688;
       color: white;
-      padding: 10px 10px;
-      width: 20%;
+      padding: 12px 24px;
       border: none;
       border-radius: 20px;
       font-size: 1rem;
@@ -187,6 +206,30 @@
       background-color: #00796b;
     }
 
+    .logout-button {
+      background-color: transparent;
+      border: 2px solid white;
+      color: white;
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background-color 0.3s, color 0.3s;
+    }
+    .logout-button:hover {
+      background-color: white;
+      color: #009688;
+    }
+
+    .typing-indicator {
+      padding: 0 20px 10px 20px;
+      height: 25px; 
+      font-style: italic;
+      color: #777;
+      transition: opacity 0.3s ease;
+    }
+
     .uploading-status {
       font-size: 0.85rem;
       color: #ff9800;
@@ -195,6 +238,29 @@
     .sent-status {
       font-size: 0.85rem;
       color: #4caf50;
+    }
+
+    /* Responsive adjustments for smaller screens */
+    @media (max-width: 768px) {
+      .message-input-area {
+        flex-wrap: wrap;
+        gap: 10px;
+        padding: 10px;
+      }
+
+      #messageInput {
+        flex-basis: 100%; 
+        order: 1; 
+      }
+
+      #fileInput {
+        flex-grow: 1; 
+        order: 2;
+      }
+
+      #sendButton {
+        order: 3;
+      }
     }
   </style>
   

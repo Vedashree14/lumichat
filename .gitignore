@@ -6,6 +6,11 @@ yarn-debug.log*
 yarn-error.log*
 lerna-debug.log*
 
+# IDE/OS files
+.vscode/
+.idea/
+.DS_Store
+
 # Diagnostic reports (https://nodejs.org/api/report.html)
 report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 
@@ -42,6 +47,7 @@ jspm_packages/
 
 # TypeScript v1 declaration files
 typings/
+
 
 # Optional npm cache directory
 .npm
@@ -87,6 +93,13 @@ typings/
 dist
 out
 
+# Dependency directories
+node_modules/
+
+# dotenv environment variables file
+.env
+.env.test
+
 # Azure Functions artifacts
 bin
 obj
@@ -97,3 +110,17 @@ local.settings.json
 __blobstorage__
 __queuestorage__
 __azurite_db*__.json
+[Aa]zurite[Cc]onfig
+
+AzuriteConfig
+
+# macOS
+.DS_Store
+
+# Logs
+logs
+*.log
+npm-debug.log*
+# Azure Functions artifacts
+/api/bin
+/api/obj

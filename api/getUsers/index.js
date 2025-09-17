@@ -1,24 +1,22 @@
-const { CosmosClient } = require("@azure/cosmos");
-
-const connectionString = process.env.COSMOS_DB_CONNECTION_STRING;
-const client = new CosmosClient(connectionString);
-const database = client.database("chatapp");
-const container = database.container("users");
+const { usersContainer } = require("../shared/cosmosClient");
+const { verifyToken } = require("../shared/auth");
 
 module.exports = async function (context, req) {
-    const query = "SELECT * FROM c";
-    const { resources } = await container.items.query(query).fetchAll();
+    try {
+        verifyToken(req); // Just verify that the user is logged in
 
-    if (resources.length === 0) {
+        const query = "SELECT c.id, c.email, c.name FROM c"; // Don't send passwords to the client
+        const { resources } = await usersContainer.items.query(query).fetchAll();
+
         context.res = {
-            status: 404,
-            body: "No users found"
+            status: 200,
+            body: resources
         };
-        return;
+    } catch (err) {
+        context.res = {
+            status: 401,
+            body: err.message
+        };
     }
 
-    context.res = {
-        status: 200,
-        body: resources
-    };
 };
