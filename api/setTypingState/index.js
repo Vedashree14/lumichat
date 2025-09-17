@@ -24,6 +24,10 @@ module.exports = async function (context, req) {
         context.res = { status: 200, body: "Typing state sent." };
 
     } catch (err) {
-        context.res = { status: 401, body: { message: err.message } };
+        context.res = { 
+            status: 401, 
+            headers: {'Content-Type': 'application/json'},
+            body: { message: err.message || 'Authentication failed.' } 
+        };
     }
 };

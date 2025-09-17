@@ -29,7 +29,8 @@ module.exports = async function (context, req) {
     } catch (err) {
         context.res = {
             status: 401,
-            body: { message: err.message }
+            headers: {'Content-Type': 'application/json'},
+            body: { message: err.message || 'Authentication failed.' }
         };
     }
 };

@@ -11,7 +11,11 @@ module.exports = async function (context, req, connectionInfo) {
 
         // Security check: Ensure the user in the token is the one requesting the connection
         if (tokenUserId !== headerUserId) {
-            context.res = { status: 401, body: { message: "User ID mismatch." } };
+            context.res = { 
+                status: 401, 
+                headers: {'Content-Type': 'application/json'},
+                body: { message: "User ID mismatch." } 
+            };
             return;
         }
 
@@ -22,7 +26,8 @@ module.exports = async function (context, req, connectionInfo) {
     } catch (err) {
         context.res = {
             status: 401,
-            body: { message: err.message }
+            headers: {'Content-Type': 'application/json'},
+            body: { message: err.message || 'Authentication failed during negotiation.' }
         };
     }
 };
