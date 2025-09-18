@@ -137,6 +137,12 @@ document.addEventListener("DOMContentLoaded", () => {
                     }
                 });
                 const connectionInfo = await connectionInfoRes.json();
+                console.log(connectionInfo); 
+                if (!connectionInfo.url) {
+                    console.error("SignalR URL is missing!");
+                    return;
+                }
+                
 
                 signalRConnection = new signalR.HubConnectionBuilder()
                     .withUrl(connectionInfo.url, {
@@ -201,8 +207,12 @@ document.addEventListener("DOMContentLoaded", () => {
                     'Authorization': `Bearer ${chatToken}`
                 }
             });
+            if (!res.ok) {
+                console.error("Failed to fetch users:", res.status, res.statusText);
+                return; // Or throw an error
+            }
             const users = await res.json();
-
+            console.log(users); 
             userMap = {};
             userListEl.innerHTML = "";
             users.forEach(user => {
