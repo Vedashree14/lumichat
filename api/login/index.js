@@ -46,7 +46,7 @@ module.exports = async function (context, req) {
                 // **Upgrade the password to a hash for future logins.**
                 const salt = await bcrypt.genSalt(10);
                 const hashedPassword = await bcrypt.hash(password, salt);
-                
+
                 const updatedUser = { ...user, password: hashedPassword };
                 // The user's email is their ID, which is also the partition key.
                 await usersContainer.item(user.id, user.email).replace(updatedUser);
@@ -84,7 +84,7 @@ module.exports = async function (context, req) {
         context.log.error("Login Error:", error);
         context.res = {
             status: 500,
-            body: { message: "An error occurred during the login process." }
+            body: { message: "An error occurred during the login process.", error: error.message, stack: error.stack }
         };
     }
 };

@@ -1,4 +1,4 @@
-/* const API_BASE = "http://localhost:7071/api"; // For local development */
+//const API_BASE = "http://localhost:7071/api"; // For local development */
 const API_BASE = "/api";
 
 let currentUser = JSON.parse(sessionStorage.getItem("chatUser")) || null;
@@ -179,7 +179,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
             let messageHTML = '';
             if (msg.message) {
-                messageHTML += document.createTextNode(msg.message).textContent;
+                messageHTML += ` <a href="${msg.fileUrl}" target="_blank" download>📎 ${msg.fileName || "File"}</a>`;
+            }
+
+            if (msg.fileUrl) {
+              messageHTML = `<a href="${msg.fileUrl}" target="_blank" download>📎 ${msg.fileName || "File"}</a>`;
+            } else {
+                messageHTML = `<span>File no longer available.</span>`;
             }
             if (msg.fileUrl) {
                 messageHTML += ` <a href="${msg.fileUrl}" target="_blank" download>📎 ${msg.fileName || "File"}</a>`;

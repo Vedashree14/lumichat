@@ -4,8 +4,8 @@ const jwt = require('jsonwebtoken');
 
 module.exports = async function (context, req) {
   const secret = process.env.JWT_SECRET;
-  const signalr = process.env.AzureWebJobsSignalRConnectionString || process.env.AzureSignalRConnectionString || null;
-  const authHeader = (req.headers && (req.headers.authorization || req.headers.Authorization)) || null;
+  const signalr = process.env.AZURE_SIGNALR_CONNECTION_STRING || null;
+  const connectionString = process.env.COSMOS_DB_CONNECTION_STRING;
   let token = null, decoded = null, verifyError = null, verifyOk = false;
 
   if (authHeader && authHeader.startsWith('Bearer ')) token = authHeader.slice(7);

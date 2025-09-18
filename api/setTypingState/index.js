@@ -24,10 +24,7 @@ module.exports = async function (context, req) {
         context.res = { status: 200, body: "Typing state sent." };
 
     } catch (err) {
-        context.res = { 
-            status: 401, 
-            headers: {'Content-Type': 'application/json'},
-            body: { message: err.message || 'Authentication failed.' } 
-        };
+        context.log.error("SetTypingState Error:", err);
+        context.res = { status: 500, body: { message: "Failed to set typing state.", error: err.message, stack: err.stack } };
     }
 };

@@ -53,10 +53,10 @@ module.exports = async function (context, req) {
             }
         };
     } catch (err) {
+        context.log.error("SendMessage Error:", err);
         context.res = {
-            status: 401,
-            headers: {'Content-Type': 'application/json'},
-            body: { message: err.message || 'Authentication failed.' }
+            status: 500,
+            body: { message: "Failed to send message.", error: err.message, stack: err.stack }
         };
     }
 };

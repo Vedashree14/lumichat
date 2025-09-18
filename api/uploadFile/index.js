@@ -57,15 +57,15 @@ module.exports = async function (context, req) {
             headers: { "Content-Type": "application/json" },
             body: {
                 message: 'File uploaded successfully.',
-                url: sasUrl,                  // Return the secure SAS URL
-                fileName: fileName            // ✅ Optional, but helps for chat display
-    }
+                url: sasUrl,                  
+                fileName: fileName            
+            }
         };
     } catch (err) {
         context.log.error('Upload failed:', err);
         context.res = {
             status: 500,
-            body: { message: 'File upload failed.' }
+            body: { message: 'File upload failed.', error: err.message, stack: err.stack }
         };
     }
 };

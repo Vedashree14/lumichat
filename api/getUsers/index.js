@@ -18,10 +18,10 @@ module.exports = async function (context, req) {
             body: resources
         };
     } catch (serverError) {
-        context.log.error("getUsers Error:", serverError); // Log the real error
+        context.log.error("getUsers Error:", serverError); 
         context.res = {
-            status: 500, // This should be a server error, not an auth error
-            body: { message: "An internal server error occurred." }
+            status: 500, 
+            body: { message: "An internal server error occurred.", error: serverError.message, stack: serverError.stack }
         };
     }
 

@@ -27,10 +27,10 @@ module.exports = async function (context, req) {
             body: resources
         };
     } catch (err) {
+        context.log.error("GetMessage Error:", err);
         context.res = {
-            status: 401,
-            headers: {'Content-Type': 'application/json'},
-            body: { message: err.message || 'Authentication failed.' }
+            status: 500,
+            body: { message: "Failed to retrieve messages.", error: err.message, stack: err.stack }
         };
     }
 };
