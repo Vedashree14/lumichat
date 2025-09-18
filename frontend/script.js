@@ -303,10 +303,9 @@ document.addEventListener("DOMContentLoaded", () => {
                         if (tempMsg) {
                             tempMsg.innerHTML = `<strong>${currentUser.name || currentUser.email}:</strong> ❌ Upload failed: ${error.message}`;
                         }
-                        return; // Exit here, finally block will still run
+                        return;
                     }
 
-                    // Safely remove the "Uploading..." message
                     const tempMsg = document.getElementById(`temp-${tempId}`);
                     if (tempMsg) {
                         tempMsg.remove();
