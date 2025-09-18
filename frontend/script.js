@@ -301,7 +301,7 @@ document.addEventListener("DOMContentLoaded", () => {
                         console.error("Upload error:", error);
                         const tempMsg = document.getElementById(`temp-${tempId}`);
                         if (tempMsg) {
-                            tempMsg.innerHTML = `<strong>${currentUser.name || currentUser.email}:</strong> ❌ Upload failed`;
+                            tempMsg.innerHTML = `<strong>${currentUser.name || currentUser.email}:</strong> ❌ Upload failed: ${error.message}`;
                         }
                         return; // Exit here, finally block will still run
                     }
