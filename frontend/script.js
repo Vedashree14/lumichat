@@ -1,5 +1,5 @@
 // const API_BASE = "http://localhost:7071/api"; // For local development
-const API_BASE = "/api";
+const API_BASE = "lumichatfunctions-ambmbygeeydaf4gd.westus3-01.azurewebsites.net/api";
 
 let currentUser = null;
 let selectedUser = null;
