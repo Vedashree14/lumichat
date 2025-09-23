@@ -1,21 +1,34 @@
-//const API_BASE = "http://localhost:7071/api"; // For local development
+// const API_BASE = "http://localhost:7071/api"; // For local development
 const API_BASE = "/api";
 
 let currentUser = JSON.parse(sessionStorage.getItem("chatUser")) || null;
 let selectedUser = null;
 let userMap = {};
-let typingTimeout = null;
 let signalRConnection = null;
-const chatToken = sessionStorage.getItem("chatToken");
+let typingTimeout = null;
 
 function logout() {
-    sessionStorage.removeItem('chatUser');
-    sessionStorage.removeItem('chatToken');
-    window.location.href = 'login.html';
+    sessionStorage.removeItem("chatUser");
+    sessionStorage.removeItem("chatToken");
+    window.location.href = "login.html";
 }
 
 function showError(message) {
     alert(message);
+}
+
+// ----------------- API Helper -----------------
+async function handleApiResponse(res) {
+    if (res.status === 401) {
+        alert("Session expired. Please log in again.");
+        logout();
+        return null;
+    }
+    try {
+        return await res.json();
+    } catch {
+        return null;
+    }
 }
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -37,13 +50,12 @@ document.addEventListener("DOMContentLoaded", () => {
                     body: JSON.stringify({ name, email, password })
                 });
 
-                const data = await res.json();
-
+                const data = await handleApiResponse(res);
                 if (res.ok) {
                     alert("Signup successful! Redirecting to login...");
                     window.location.href = "login.html";
                 } else {
-                    showError(data.message || data.error || "Signup failed.");
+                    showError(data?.message || "Signup failed.");
                 }
             } catch (err) {
                 console.error("Signup error:", err);
@@ -59,26 +71,33 @@ document.addEventListener("DOMContentLoaded", () => {
             const email = document.getElementById("loginEmail").value;
             const password = document.getElementById("loginPassword").value;
 
-            const res = await fetch(`${API_BASE}/login`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ email, password })
-            });
+            try {
+                const res = await fetch(`${API_BASE}/login`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ email, password })
+                });
 
-            const data = await res.json();
-            if (res.ok) {
-                sessionStorage.setItem("chatUser", JSON.stringify(data.user));
-                sessionStorage.setItem("chatToken", data.token);
-                window.location.href = "chat.html";
-            } else {
-                showError(data.message || "Login failed.");
+                const data = await handleApiResponse(res);
+                if (res.ok) {
+                    sessionStorage.setItem("chatUser", JSON.stringify(data.user));
+                    sessionStorage.setItem("chatToken", data.token);
+                    window.location.href = "chat.html";
+                } else {
+                    showError(data?.message || "Login failed.");
+                }
+            } catch (err) {
+                console.error("Login error:", err);
+                showError("Something went wrong. See console for details.");
             }
         });
     }
 
     // ----------------- CHAT -----------------
     if (window.location.pathname.endsWith("chat.html")) {
-        if (!currentUser || !chatToken) return window.location.href = "login.html";
+        if (!currentUser || !sessionStorage.getItem("chatToken")) {
+            return (window.location.href = "login.html");
+        }
 
         const logoutButton = document.getElementById("logoutButton");
         if (logoutButton) logoutButton.onclick = logout;
@@ -90,17 +109,20 @@ document.addEventListener("DOMContentLoaded", () => {
         const typingIndicatorEl = document.getElementById("typingIndicator");
         const sendButton = document.getElementById("sendButton");
 
-        if (sendButton) sendButton.addEventListener('click', sendMessage);
+        if (sendButton) sendButton.addEventListener("click", sendMessage);
 
         // ---------- Typing State ----------
         if (messageInput) {
-            messageInput.addEventListener('input', () => {
+            messageInput.addEventListener("input", () => {
                 if (!selectedUser || !signalRConnection) return;
 
                 if (!typingTimeout) {
                     fetch(`${API_BASE}/setTypingState`, {
                         method: "POST",
-                        headers: { "Content-Type": "application/json", 'Authorization': `Bearer ${chatToken}` },
+                        headers: {
+                            "Content-Type": "application/json",
+                            Authorization: `Bearer ${sessionStorage.getItem("chatToken")}`
+                        },
                         body: JSON.stringify({ recipient: selectedUser.email, isTyping: true })
                     }).catch(err => console.error("Error sending typing state:", err));
                 } else {
@@ -110,10 +132,13 @@ document.addEventListener("DOMContentLoaded", () => {
                 typingTimeout = setTimeout(() => {
                     fetch(`${API_BASE}/setTypingState`, {
                         method: "POST",
-                        headers: { "Content-Type": "application/json", 'Authorization': `Bearer ${chatToken}` },
+                        headers: {
+                            "Content-Type": "application/json",
+                            Authorization: `Bearer ${sessionStorage.getItem("chatToken")}`
+                        },
                         body: JSON.stringify({ recipient: selectedUser.email, isTyping: false })
                     }).catch(err => console.error("Error sending typing state:", err))
-                    .finally(() => { typingTimeout = null; });
+                      .finally(() => { typingTimeout = null; });
                 }, 2000);
             });
         }
@@ -121,16 +146,16 @@ document.addEventListener("DOMContentLoaded", () => {
         // ---------- SignalR ----------
         async function connectToSignalR() {
             try {
-                const connectionInfoRes = await fetch(`${API_BASE}/negotiate`, {
+                const res = await fetch(`${API_BASE}/negotiate`, {
                     method: "POST",
                     headers: {
-                        'Authorization': `Bearer ${chatToken}`,
-                        'x-user-id': currentUser.email
+                        Authorization: `Bearer ${sessionStorage.getItem("chatToken")}`,
+                        "x-user-id": currentUser.email
                     }
                 });
-                const connectionInfo = await connectionInfoRes.json();
 
-                if (!connectionInfo.url || !connectionInfo.accessToken) {
+                const connectionInfo = await handleApiResponse(res);
+                if (!connectionInfo?.url || !connectionInfo?.accessToken) {
                     console.error("SignalR negotiation failed:", connectionInfo);
                     return;
                 }
@@ -141,7 +166,8 @@ document.addEventListener("DOMContentLoaded", () => {
                     .build();
 
                 signalRConnection.on("newMessage", (message) => {
-                    if (selectedUser && (message.sender === selectedUser.email || message.receiver === selectedUser.email)) {
+                    if (selectedUser &&
+                        (message.sender === selectedUser.email || message.receiver === selectedUser.email)) {
                         renderMessage(message);
                         chatMessages.scrollTop = chatMessages.scrollHeight;
                     }
@@ -156,7 +182,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 await signalRConnection.start();
                 console.log("SignalR Connected.");
             } catch (e) {
-                console.error("SignalR connection failed: ", e);
+                console.error("SignalR connection failed:", e);
             }
         }
 
@@ -167,11 +193,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const senderName = userMap[msg.sender] || msg.sender;
 
             let messageHTML = "";
-
-            if (msg.message) {
-                messageHTML += `<span>${msg.message}</span>`;
-            }
-
+            if (msg.message) messageHTML += `<span>${msg.message}</span>`;
             if (msg.fileUrl) {
                 messageHTML += ` <a href="${msg.fileUrl}" target="_blank" download>📎 ${msg.fileName || "File"}</a>`;
             }
@@ -182,48 +204,52 @@ document.addEventListener("DOMContentLoaded", () => {
 
         // ---------- Load Users ----------
         async function loadUsers() {
-            const res = await fetch(`${API_BASE}/getUsers`, {
-                headers: { 'Authorization': `Bearer ${chatToken}` }
-            });
-            if (!res.ok) {
-                console.error("Failed to fetch users:", res.status, res.statusText);
-                return;
+            try {
+                const res = await fetch(`${API_BASE}/getUsers`, {
+                    headers: { Authorization: `Bearer ${sessionStorage.getItem("chatToken")}` }
+                });
+                const users = await handleApiResponse(res);
+                if (!users) return;
+
+                userMap = {};
+                userListEl.innerHTML = "";
+                users.forEach(user => {
+                    userMap[user.email] = user.name;
+                    if (user.email !== currentUser.email) {
+                        const btn = document.createElement("button");
+                        btn.textContent = user.name;
+                        btn.classList.add("user-button");
+                        btn.onclick = () => {
+                            if (typingTimeout && selectedUser) {
+                                clearTimeout(typingTimeout);
+                                fetch(`${API_BASE}/setTypingState`, {
+                                    method: "POST",
+                                    headers: {
+                                        "Content-Type": "application/json",
+                                        Authorization: `Bearer ${sessionStorage.getItem("chatToken")}`
+                                    },
+                                    body: JSON.stringify({ recipient: selectedUser.email, isTyping: false })
+                                }).catch(err => console.error("Error sending typing state:", err));
+                                typingTimeout = null;
+                            }
+
+                            selectedUser = user;
+                            chatHeader.innerText = `Chat with ${user.name}`;
+
+                            document.getElementById("chat-placeholder").style.display = "none";
+                            chatMessages.style.display = "block";
+                            document.querySelector(".message-input-area").style.display = "flex";
+                            typingIndicatorEl.textContent = "";
+                            chatMessages.innerHTML = "";
+
+                            loadMessageHistory();
+                        };
+                        userListEl.appendChild(btn);
+                    }
+                });
+            } catch (err) {
+                console.error("Failed to load users:", err);
             }
-
-            const users = await res.json();
-            userMap = {};
-            userListEl.innerHTML = "";
-            users.forEach(user => {
-                userMap[user.email] = user.name;
-                if (user.email !== currentUser.email) {
-                    const btn = document.createElement("button");
-                    btn.textContent = user.name;
-                    btn.classList.add("user-button");
-                    btn.onclick = () => {
-                        if (typingTimeout && selectedUser) {
-                            clearTimeout(typingTimeout);
-                            fetch(`${API_BASE}/setTypingState`, {
-                                method: "POST",
-                                headers: { "Content-Type": "application/json", 'Authorization': `Bearer ${chatToken}` },
-                                body: JSON.stringify({ recipient: selectedUser.email, isTyping: false })
-                            }).catch(err => console.error("Error sending typing state:", err));
-                            typingTimeout = null;
-                        }
-
-                        selectedUser = user;
-                        chatHeader.innerText = `Chat with ${user.name}`;
-
-                        document.getElementById('chat-placeholder').style.display = 'none';
-                        chatMessages.style.display = 'block';
-                        document.querySelector('.message-input-area').style.display = 'flex';
-                        typingIndicatorEl.textContent = "";
-                        chatMessages.innerHTML = "";
-
-                        loadMessageHistory();
-                    };
-                    userListEl.appendChild(btn);
-                }
-            });
         }
 
         // ---------- Load Message History ----------
@@ -231,10 +257,12 @@ document.addEventListener("DOMContentLoaded", () => {
             if (!selectedUser) return;
             try {
                 const res = await fetch(`${API_BASE}/getMessage?receiver=${selectedUser.email}`, {
-                    headers: { 'Authorization': `Bearer ${chatToken}` }
+                    headers: { Authorization: `Bearer ${sessionStorage.getItem("chatToken")}` }
                 });
 
-                const messageHistory = await res.json();
+                const messageHistory = await handleApiResponse(res);
+                if (!messageHistory) return;
+
                 messageHistory.forEach(renderMessage);
                 chatMessages.scrollTop = chatMessages.scrollHeight;
             } catch (err) {
@@ -246,7 +274,6 @@ document.addEventListener("DOMContentLoaded", () => {
         async function sendMessage() {
             const text = messageInput.value.trim();
             const file = document.getElementById("fileInput").files[0];
-
             if (!selectedUser || (!text && !file)) return;
 
             try {
@@ -268,14 +295,16 @@ document.addEventListener("DOMContentLoaded", () => {
 
                         const res = await fetch(`${API_BASE}/uploadFile`, {
                             method: "POST",
-                            headers: { 'Authorization': `Bearer ${chatToken}` },
+                            headers: { Authorization: `Bearer ${sessionStorage.getItem("chatToken")}` },
                             body: formData
                         });
 
-                        if (!res.ok) throw new Error("Upload failed");
-                        const data = await res.json();
-                        if (data && data.url) fileUrl = data.url;
-                        else throw new Error("Upload response invalid");
+                        const data = await handleApiResponse(res);
+                        if (res.ok && data?.url) {
+                            fileUrl = data.url;
+                        } else {
+                            throw new Error("Upload failed");
+                        }
                     } catch (error) {
                         console.error("Upload error:", error);
                         const tempMsg = document.getElementById(`temp-${tempId}`);
@@ -293,7 +322,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     method: "POST",
                     headers: {
                         "Content-Type": "application/json",
-                        'Authorization': `Bearer ${chatToken}`
+                        Authorization: `Bearer ${sessionStorage.getItem("chatToken")}`
                     },
                     body: JSON.stringify({
                         message: text,
@@ -306,10 +335,13 @@ document.addEventListener("DOMContentLoaded", () => {
                 messageInput.value = "";
                 document.getElementById("fileInput").value = "";
 
-                // Reset typing state after send
+                // Reset typing state
                 fetch(`${API_BASE}/setTypingState`, {
                     method: "POST",
-                    headers: { "Content-Type": "application/json", 'Authorization': `Bearer ${chatToken}` },
+                    headers: {
+                        "Content-Type": "application/json",
+                        Authorization: `Bearer ${sessionStorage.getItem("chatToken")}`
+                    },
                     body: JSON.stringify({ recipient: selectedUser.email, isTyping: false })
                 }).catch(err => console.error("Error clearing typing state:", err));
                 typingTimeout = null;

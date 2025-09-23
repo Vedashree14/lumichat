@@ -64,6 +64,7 @@ module.exports = async function (context, req) {
 
 
         // Create and sign JWT
+        
         const payload = { user: { id: user.id, name: user.name } }; // user.id is the email
         const token = jwt.sign(payload, process.env.JWT_SECRET, {
             expiresIn: '3h' // Token expires in 3 hours
