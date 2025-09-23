@@ -32,8 +32,13 @@ async function handleApiResponse(res) {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-    // Ensure we read sessionStorage after the page loads
-    currentUser = JSON.parse(sessionStorage.getItem("chatUser")) || null;
+    currentUser = JSON.parse(sessionStorage.getItem("chatUser"));
+    const token = sessionStorage.getItem("chatToken");
+
+    // Redirect if not logged in on chat page
+    if (window.location.pathname.endsWith("chat.html") && (!currentUser || !token)) {
+        return (window.location.href = "login.html");
+    }
 
     const signupForm = document.getElementById("signupForm");
     const loginForm = document.getElementById("loginForm");
@@ -42,8 +47,8 @@ document.addEventListener("DOMContentLoaded", () => {
     if (signupForm) {
         signupForm.addEventListener("submit", async (e) => {
             e.preventDefault();
-            const name = document.getElementById("name").value;
-            const email = document.getElementById("email").value;
+            const name = document.getElementById("name").value.trim();
+            const email = document.getElementById("email").value.trim().toLowerCase();
             const password = document.getElementById("password").value;
 
             try {
@@ -53,9 +58,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     body: JSON.stringify({ name, email, password })
                 });
 
-                // Parse JSON directly for signup/login flows to avoid the global 401 auto-logout shortcut
-                const data = await res.json().catch(() => null);
-
+                const data = await handleApiResponse(res);
                 if (res.ok) {
                     alert("Signup successful! Redirecting to login...");
                     window.location.href = "login.html";
@@ -73,7 +76,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (loginForm) {
         loginForm.addEventListener("submit", async (e) => {
             e.preventDefault();
-            const email = document.getElementById("loginEmail").value;
+            const email = document.getElementById("loginEmail").value.trim().toLowerCase();
             const password = document.getElementById("loginPassword").value;
 
             try {
@@ -83,29 +86,12 @@ document.addEventListener("DOMContentLoaded", () => {
                     body: JSON.stringify({ email, password })
                 });
 
-                const data = await res.json().catch(() => null);
-
-                if (res.ok && data) {
-                    // Remove only the keys we use (safer than clearing whole storage)
-                    sessionStorage.removeItem("chatUser");
-                    sessionStorage.removeItem("chatToken");
-
-                    // Normalize email for consistent comparisons
-                    const normalizedEmail = (data.user?.email || email || "").trim().toLowerCase();
-
-                    const userToStore = {
-                        email: normalizedEmail,
-                        name: data.user?.name || ""
-                    };
-
-                    sessionStorage.setItem("chatUser", JSON.stringify(userToStore));
+                const data = await handleApiResponse(res);
+                
+                if (res.ok) {
+                    // Do NOT clear sessionStorage, just overwrite keys
+                    sessionStorage.setItem("chatUser", JSON.stringify(data.user));
                     sessionStorage.setItem("chatToken", data.token);
-
-                    // For debugging: confirm stored values
-                    console.log("Stored chatUser:", sessionStorage.getItem("chatUser"));
-                    console.log("Stored chatToken:", !!sessionStorage.getItem("chatToken"));
-
-                    // Redirect after storage
                     window.location.href = "chat.html";
                 } else {
                     showError(data?.message || "Login failed.");
@@ -119,13 +105,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // ----------------- CHAT -----------------
     if (window.location.pathname.endsWith("chat.html")) {
-        // Re-read currentUser when entering chat page to ensure we have latest sessionStorage
-        currentUser = JSON.parse(sessionStorage.getItem("chatUser")) || null;
-
-        if (!currentUser || !sessionStorage.getItem("chatToken")) {
-            return (window.location.href = "login.html");
-        }
-
         const logoutButton = document.getElementById("logoutButton");
         if (logoutButton) logoutButton.onclick = logout;
 
@@ -173,14 +152,11 @@ document.addEventListener("DOMContentLoaded", () => {
         // ---------- SignalR ----------
         async function connectToSignalR() {
             try {
-                const token = sessionStorage.getItem("chatToken");
-                const headerUserId = (currentUser.email || "").trim().toLowerCase();
-
                 const res = await fetch(`${API_BASE}/negotiate`, {
                     method: "POST",
                     headers: {
-                        Authorization: `Bearer ${token}`,
-                        "x-user-id": headerUserId
+                        Authorization: `Bearer ${sessionStorage.getItem("chatToken")}`,
+                        "x-user-id": currentUser.email
                     }
                 });
 
@@ -244,10 +220,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 userMap = {};
                 userListEl.innerHTML = "";
                 users.forEach(user => {
-                    // Normalize emails from server as well
-                    const userEmail = (user.email || "").trim().toLowerCase();
-                    userMap[userEmail] = user.name;
-                    if (userEmail !== currentUser.email) {
+                    userMap[user.email] = user.name;
+                    if (user.email !== currentUser.email) {
                         const btn = document.createElement("button");
                         btn.textContent = user.name;
                         btn.classList.add("user-button");
@@ -265,7 +239,7 @@ document.addEventListener("DOMContentLoaded", () => {
                                 typingTimeout = null;
                             }
 
-                            selectedUser = { email: userEmail, name: user.name };
+                            selectedUser = user;
                             chatHeader.innerText = `Chat with ${user.name}`;
 
                             document.getElementById("chat-placeholder").style.display = "none";
@@ -288,8 +262,7 @@ document.addEventListener("DOMContentLoaded", () => {
         async function loadMessageHistory() {
             if (!selectedUser) return;
             try {
-                const receiver = encodeURIComponent(selectedUser.email);
-                const res = await fetch(`${API_BASE}/getMessage?receiver=${receiver}`, {
+                const res = await fetch(`${API_BASE}/getMessage?receiver=${selectedUser.email}`, {
                     headers: { Authorization: `Bearer ${sessionStorage.getItem("chatToken")}` }
                 });
 
