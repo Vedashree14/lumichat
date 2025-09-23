@@ -1,38 +1,36 @@
-const { CosmosClient } = require("@azure/cosmos");
-
-const connectionString = process.env.COSMOS_DB_CONNECTION_STRING;
-const client = new CosmosClient(connectionString);
-const database = client.database("chatapp");
-const container = database.container("messages");
+const { messagesContainer } = require("../shared/cosmosClient");
+const { verifyToken } = require("../shared/auth");
 
 module.exports = async function (context, req) {
-    const { sender, receiver } = req.query;
+    try {
+        const decoded = verifyToken(req);
+        const sender = decoded.user.id; // Get sender from the validated token
+        const { receiver } = req.query;
 
-    if (!sender || !receiver) {
+        if (!receiver) {
+            context.res = {
+                status: 400,
+                body: { message: "Missing receiver" }
+            };
+            return;
+        }
+
+        const chatId = sender < receiver ? `${sender}-${receiver}` : `${receiver}-${sender}`;
+        const query = `SELECT * FROM c WHERE c.chatId = @chatId ORDER BY c.timestamp`;
+        const { resources } = await messagesContainer.items.query({
+            query,
+            parameters: [{ name: "@chatId", value: chatId }]
+        }).fetchAll();
+
         context.res = {
-            status: 400,
-            body: "Missing sender or receiver"
+            status: 200,
+            body: resources
         };
-        return;
-    }
-
-    const chatId = sender < receiver ? `${sender}-${receiver}` : `${receiver}-${sender}`;
-    const query = `SELECT * FROM c WHERE c.chatId = @chatId ORDER BY c.timestamp`;
-    const { resources } = await container.items.query({
-        query,
-        parameters: [{ name: "@chatId", value: chatId }]
-    }).fetchAll();
-
-    if (resources.length === 0) {
+    } catch (err) {
+        context.log.error("GetMessage Error:", err);
         context.res = {
-            status: 404,
-            body: "No messages found"
+            status: 500,
+            body: { message: "Failed to retrieve messages.", error: err.message, stack: err.stack }
         };
-        return;
     }
-
-    context.res = {
-        status: 200,
-        body: resources
-    };
 };

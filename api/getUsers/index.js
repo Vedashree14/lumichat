@@ -1,24 +1,28 @@
-const { CosmosClient } = require("@azure/cosmos");
-
-const connectionString = process.env.COSMOS_DB_CONNECTION_STRING;
-const client = new CosmosClient(connectionString);
-const database = client.database("chatapp");
-const container = database.container("users");
+const { usersContainer } = require("../shared/cosmosClient");
+const { verifyToken } = require("../shared/auth");
 
 module.exports = async function (context, req) {
-    const query = "SELECT * FROM c";
-    const { resources } = await container.items.query(query).fetchAll();
+    try {
+        try {
+            verifyToken(req); // First, verify that the user is logged in
+        } catch (authError) {
+            context.res = { status: 401, body: { message: authError.message } };
+            return;
+        }
 
-    if (resources.length === 0) {
+        const query = "SELECT c.id, c.email, c.name FROM c"; // Don't send passwords to the client
+        const { resources } = await usersContainer.items.query(query).fetchAll();
+
         context.res = {
-            status: 404,
-            body: "No users found"
+            status: 200,
+            body: resources
         };
-        return;
+    } catch (serverError) {
+        context.log.error("getUsers Error:", serverError); 
+        context.res = {
+            status: 500, 
+            body: { message: "An internal server error occurred.", error: serverError.message, stack: serverError.stack }
+        };
     }
 
-    context.res = {
-        status: 200,
-        body: resources
-    };
 };

@@ -1,39 +1,62 @@
-const { CosmosClient } = require("@azure/cosmos");
-
-const connectionString = process.env.COSMOS_DB_CONNECTION_STRING;
-const client = new CosmosClient(connectionString);
-const database = client.database("chatapp");
-const container = database.container("messages");
+const { messagesContainer, usersContainer } = require("../shared/cosmosClient");
+const { verifyToken } = require("../shared/auth");
 
 module.exports = async function (context, req) {
-    const { sender, receiver, message } = req.body;
+    try {
+        const decoded = verifyToken(req);
+        const sender = decoded.user.id; // Get sender from the validated token
+        const { receiver, message, fileName, fileUrl } = req.body;
 
-    if (!sender || !receiver || !message) {
-        context.res = {
-            status: 400,
-            body: "Missing required fields"
-        };
-        return;
-    }
-
-    const chatId = sender < receiver ? `${sender}-${receiver}` : `${receiver}-${sender}`;
-
-    const newMessage = {
-        chatId,
-        sender,
-        receiver,
-        message,
-        timestamp: new Date().toISOString()
-    };
-
-    // Store message in Cosmos DB
-    await container.items.create(newMessage);
-
-    context.res = {
-        status: 200,
-        body: {
-            message: "Message sent successfully",
-            newMessage
+        if (!receiver || (!message && !fileUrl)) {
+            context.res = {
+                status: 400,
+                body: { message: "Missing required fields" }
+            };
+            return;
         }
-    };
+
+        const chatId = sender < receiver ? `${sender}-${receiver}` : `${receiver}-${sender}`;
+
+        const newMessage = {
+            chatId,
+            sender,
+            receiver,
+            message: message || "",
+            timestamp: new Date().toISOString(),
+            fileName: fileName || null,
+            fileUrl: fileUrl || null
+        };
+
+        // Store message in Cosmos DB
+        await messagesContainer.items.create(newMessage);
+
+        context.bindings.signalRMessages = [
+            {
+                // Message for the recipient
+                "target": "newMessage",
+                "userId": receiver,
+                "arguments": [newMessage]
+            },
+            {
+                // Send a copy back to the sender so their UI updates
+                "target": "newMessage",
+                "userId": sender,
+                "arguments": [newMessage]
+            }
+        ];
+
+        context.res = {
+            status: 200,
+            body: {
+                message: "Message sent successfully",
+                newMessage
+            }
+        };
+    } catch (err) {
+        context.log.error("SendMessage Error:", err);
+        context.res = {
+            status: 500,
+            body: { message: "Failed to send message.", error: err.message, stack: err.stack }
+        };
+    }
 };
