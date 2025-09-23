@@ -1,16 +1,20 @@
 const { verifyToken } = require("../shared/auth");
 
+function normalize(val) {
+    return typeof val === 'string' ? val.trim().toLowerCase() : val;
+}
+
 module.exports = async function (context, req, connectionInfo) {
     try {
-        // Authenticate the user with their JWT
         const decoded = verifyToken(req);
-        const tokenUserId = decoded.user.id;
+        // token may contain email in user.email or user.id
+        const tokenUserId = normalize(decoded.user?.email || decoded.user?.id);
 
         // Get the user ID from the header (which the binding uses)
-        const headerUserId = req.headers['x-user-id'];
+        const headerUserId = normalize(req.headers['x-user-id']);
 
         // Security check: Ensure the user in the token is the one requesting the connection
-        if (tokenUserId !== headerUserId) {
+        if (!tokenUserId || !headerUserId || tokenUserId !== headerUserId) {
             context.res = { status: 401, body: { message: "User ID mismatch." } };
             return;
         }

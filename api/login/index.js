@@ -23,7 +23,7 @@ module.exports = async function (context, req) {
 
         if (resources.length === 0) {
             context.res = {
-                status: 401, // Use 401 for security to prevent user enumeration
+                status: 401,
                 body: { message: "Invalid credentials." }
             };
             return;
@@ -32,23 +32,17 @@ module.exports = async function (context, req) {
         const user = resources[0];
         let isMatch = false;
 
-        // Check if the stored password is a bcrypt hash. If not, it's plain text.
-        // A valid bcrypt hash starts with a pattern like $2a$, $2b$, or $2y$.
         const isHashed = user.password && user.password.startsWith('$2');
 
         if (isHashed) {
-            // This is a new user (or a migrated one) with a hashed password.
             isMatch = await bcrypt.compare(password, user.password);
         } else {
-            // This is an old user with a plain-text password.
             if (user.password === password) {
                 isMatch = true;
-                // **Upgrade the password to a hash for future logins.**
                 const salt = await bcrypt.genSalt(10);
                 const hashedPassword = await bcrypt.hash(password, salt);
 
                 const updatedUser = { ...user, password: hashedPassword };
-                // The user's email is their ID, which is also the partition key.
                 await usersContainer.item(user.id, user.email).replace(updatedUser);
                 context.log(`Upgraded password for user: ${email}`);
             }
@@ -62,12 +56,17 @@ module.exports = async function (context, req) {
             return;
         }
 
+        // Create and sign JWT - include email explicitly
+        const payload = {
+            user: {
+                id: user.id,
+                email: user.email,
+                name: user.name
+            }
+        };
 
-        // Create and sign JWT
-        
-        const payload = { user: { id: user.id, name: user.name } }; // user.id is the email
         const token = jwt.sign(payload, process.env.JWT_SECRET, {
-            expiresIn: '3h' // Token expires in 3 hours
+            expiresIn: '3h'
         });
 
         context.res = {

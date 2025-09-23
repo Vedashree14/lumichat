@@ -1,11 +1,16 @@
 const { messagesContainer, usersContainer } = require("../shared/cosmosClient");
 const { verifyToken } = require("../shared/auth");
 
+function normalize(val) {
+    return typeof val === 'string' ? val.trim().toLowerCase() : val;
+}
+
 module.exports = async function (context, req) {
     try {
         const decoded = verifyToken(req);
-        const sender = decoded.user.id; // Get sender from the validated token
-        const { receiver, message, fileName, fileUrl } = req.body;
+        const sender = normalize(decoded.user?.email || decoded.user?.id);
+        const { receiver: rawReceiver, message, fileName, fileUrl } = req.body;
+        const receiver = normalize(rawReceiver);
 
         if (!receiver || (!message && !fileUrl)) {
             context.res = {
@@ -32,13 +37,11 @@ module.exports = async function (context, req) {
 
         context.bindings.signalRMessages = [
             {
-                // Message for the recipient
                 "target": "newMessage",
                 "userId": receiver,
                 "arguments": [newMessage]
             },
             {
-                // Send a copy back to the sender so their UI updates
                 "target": "newMessage",
                 "userId": sender,
                 "arguments": [newMessage]

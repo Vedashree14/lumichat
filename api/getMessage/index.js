@@ -1,11 +1,15 @@
 const { messagesContainer } = require("../shared/cosmosClient");
 const { verifyToken } = require("../shared/auth");
 
+function normalize(val) {
+    return typeof val === 'string' ? val.trim().toLowerCase() : val;
+}
+
 module.exports = async function (context, req) {
     try {
         const decoded = verifyToken(req);
-        const sender = decoded.user.id; // Get sender from the validated token
-        const { receiver } = req.query;
+        const sender = normalize(decoded.user?.email || decoded.user?.id);
+        const receiver = normalize(req.query?.receiver);
 
         if (!receiver) {
             context.res = {

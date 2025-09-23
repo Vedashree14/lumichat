@@ -1,17 +1,21 @@
 const { verifyToken } = require("../shared/auth");
 
+function normalize(val) {
+    return typeof val === 'string' ? val.trim().toLowerCase() : val;
+}
+
 module.exports = async function (context, req) {
     try {
         const decoded = verifyToken(req);
-        const sender = decoded.user.id;
-        const { recipient, isTyping } = req.body;
+        const sender = normalize(decoded.user?.email || decoded.user?.id);
+        const { recipient: rawRecipient, isTyping } = req.body;
+        const recipient = normalize(rawRecipient);
 
         if (!recipient) {
             context.res = { status: 400, body: { message: "Recipient is required." } };
             return;
         }
 
-        // Use the SignalR output binding to send the typing state to the correct user
         context.bindings.signalRMessages = [{
             "target": "typingStateUpdate",
             "userId": recipient,
