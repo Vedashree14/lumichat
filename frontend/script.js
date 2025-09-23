@@ -79,7 +79,9 @@ document.addEventListener("DOMContentLoaded", () => {
                 });
 
                 const data = await handleApiResponse(res);
+                
                 if (res.ok) {
+                    sessionStorage.clear();
                     sessionStorage.setItem("chatUser", JSON.stringify(data.user));
                     sessionStorage.setItem("chatToken", data.token);
                     window.location.href = "chat.html";
