@@ -18,7 +18,7 @@ function verifyToken(req) {
     if (!token) {
         throw new Error('Token format is invalid, authorization denied');
     }
-
+    console.log('[AUTH DEBUG] Raw token length:', typeof token === 'string' ? token.length : 'no-token');
     try {
         return jwt.verify(token, process.env.JWT_SECRET);
     } catch (err) {
