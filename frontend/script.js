@@ -1,5 +1,5 @@
-const API_BASE = "http://localhost:7071/api"; // For local development
-// const API_BASE = "/api";
+//const API_BASE = "http://localhost:7071/api"; // For local development
+const API_BASE = "/api";
 
 let currentUser = JSON.parse(sessionStorage.getItem("chatUser")) || null;
 let selectedUser = null;
