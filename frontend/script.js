@@ -121,7 +121,8 @@ document.addEventListener("DOMContentLoaded", () => {
         if (messageInput) {
             messageInput.addEventListener("input", () => {
                 if (!selectedUser || !signalRConnection) return;
-
+        
+                // Send "isTyping: true" only on first keypress
                 if (!typingTimeout) {
                     fetch(`${API_BASE}/setTypingState`, {
                         method: "POST",
@@ -134,7 +135,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 } else {
                     clearTimeout(typingTimeout);
                 }
-
+        
+                // Set timeout to send "isTyping: false" after 2 seconds of inactivity
                 typingTimeout = setTimeout(() => {
                     fetch(`${API_BASE}/setTypingState`, {
                         method: "POST",
@@ -181,7 +183,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
                 signalRConnection.on("typingStateUpdate", (data) => {
                     if (selectedUser && data.sender === selectedUser.email) {
-                        typingIndicatorEl.textContent = data.isTyping ? `${selectedUser.name} is typing...` : "";
+                        if (data.isTyping) {
+                            typingIndicatorEl.textContent = `${selectedUser.name} is typing...`;
+                            typingIndicatorEl.style.display = 'block';
+                        } else {
+                            typingIndicatorEl.textContent = '';
+                            typingIndicatorEl.style.display = 'none';
+                        }
                     }
                 });
 
