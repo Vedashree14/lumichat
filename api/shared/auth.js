@@ -1,24 +1,19 @@
 const jwt = require('jsonwebtoken');
 
-/**
- * 
- * @param {object} req
- * @returns {object} 
- * @throws {Error} 
- */
 function verifyToken(req) {
-    const authHeader = req.headers['authorization'];
-
+    // get header case-insensitive
+    const headers = req.headers || {};
+    const authHeader = headers.authorization || headers.Authorization;
     if (!authHeader) {
         throw new Error('Authorization header is missing, authorization denied');
     }
 
-    const token = authHeader.split(' ')[1];
-
-    if (!token) {
+    const parts = authHeader.split(' ');
+    if (parts.length !== 2 || !/^Bearer$/i.test(parts[0])) {
         throw new Error('Token format is invalid, authorization denied');
     }
-    console.log('[AUTH DEBUG] Raw token length:', typeof token === 'string' ? token.length : 'no-token');
+
+    const token = parts[1];
     try {
         return jwt.verify(token, process.env.JWT_SECRET);
     } catch (err) {
@@ -28,4 +23,3 @@ function verifyToken(req) {
 }
 
 module.exports = { verifyToken };
-

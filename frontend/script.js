@@ -288,19 +288,38 @@ document.addEventListener("DOMContentLoaded", () => {
                 chatMessages.scrollTop = chatMessages.scrollHeight;
 
                 try {
-                    const formData = new FormData();
-                    formData.append("file", file);
-
-                    const res = await fetch(`${API_BASE}/uploadFile`, {
+                    // === NEW: request SAS and upload directly ===
+                    const sasRes = await fetch(`${API_BASE}/getUploadSas`, {
                         method: "POST",
-                        headers: { Authorization: `Bearer ${sessionStorage.getItem("chatToken")}` },
-                        body: formData
+                        headers: {
+                            "Content-Type": "application/json",
+                            Authorization: `Bearer ${sessionStorage.getItem("chatToken")}`
+                        },
+                        body: JSON.stringify({ fileName: file.name })
                     });
 
-                    const data = await handleApiResponse(res);
-                    if (!res.ok || !data?.url) throw new Error(data?.message || "Upload failed");
+                    const sasData = await handleApiResponse(sasRes);
+                    if (!sasRes.ok || !sasData?.uploadUrl) {
+                        throw new Error(sasData?.message || "Failed to get upload URL");
+                    }
 
-                    fileUrl = data.url;
+                    const { uploadUrl, downloadUrl } = sasData;
+
+                    const putRes = await fetch(uploadUrl, {
+                        method: "PUT",
+                        headers: {
+                            "x-ms-blob-type": "BlockBlob",
+                            "Content-Type": file.type || "application/octet-stream"
+                        },
+                        body: file
+                    });
+
+                    if (!putRes.ok) {
+                        const t = await putRes.text().catch(()=>null);
+                        throw new Error(`Upload failed (${putRes.status}): ${t || putRes.statusText}`);
+                    }
+
+                    fileUrl = downloadUrl;
                 } catch (error) {
                     console.error("Upload error:", error);
                     const tempMsg = document.getElementById(`temp-${tempId}`);
