@@ -1,3 +1,4 @@
+// script.js
 const API_BASE = "https://lumichatfunctions-ambmbygeeydaf4gd.westus3-01.azurewebsites.net/api";
 
 let currentUser = null;
@@ -7,6 +8,7 @@ let signalRConnection = null;
 let typingTimeout = null;
 
 function logout() {
+    console.debug("[logout] clearing sessionStorage");
     sessionStorage.removeItem("chatUser");
     sessionStorage.removeItem("chatToken");
     window.location.href = "login.html";
@@ -18,23 +20,31 @@ function showError(message) {
 
 // ----------------- API Helper -----------------
 async function handleApiResponse(res) {
+    if (!res) return null;
     if (res.status === 401) {
+        console.warn("[handleApiResponse] 401 -> logout");
         alert("Session expired. Please log in again.");
         logout();
         return null;
     }
     try {
         return await res.json();
-    } catch {
+    } catch (err) {
+        console.error("[handleApiResponse] failed to parse json", err);
         return null;
     }
 }
 
 document.addEventListener("DOMContentLoaded", () => {
+    // DEBUG: inspect sessionStorage at load
+    console.debug("[DOMContentLoaded] sessionStorage keys:", Object.keys(sessionStorage));
+    console.debug("[DOMContentLoaded] raw chatUser:", sessionStorage.getItem("chatUser"));
     currentUser = JSON.parse(sessionStorage.getItem("chatUser"));
     const token = sessionStorage.getItem("chatToken");
+    console.debug("[DOMContentLoaded] currentUser, token present:", !!currentUser, !!token);
 
     if (window.location.pathname.endsWith("chat.html") && (!currentUser || !token)) {
+        console.warn("[DOMContentLoaded] not authenticated -> redirect to login");
         return (window.location.href = "login.html");
     }
 
@@ -83,12 +93,20 @@ document.addEventListener("DOMContentLoaded", () => {
                     body: JSON.stringify({ email, password })
                 });
                 const data = await handleApiResponse(res);
-                if (res.ok) {
+
+                // DEBUG
+                console.debug("[login] response ok:", res.ok, "data:", data);
+
+                if (res.ok && data && data.token) {
                     sessionStorage.setItem("chatUser", JSON.stringify(data.user));
                     sessionStorage.setItem("chatToken", data.token);
+                    console.debug("[login] saved chatUser & chatToken to sessionStorage");
                     window.location.href = "chat.html";
                 } else {
-                    showError(data?.message || "Login failed.");
+                    // If server returned 200 but missing token, show details
+                    const msg = data?.message || "Login failed: missing token or user";
+                    console.warn("[login] failed:", msg);
+                    showError(msg);
                 }
             } catch (err) {
                 console.error("Login error:", err);
@@ -111,11 +129,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
         if (sendButton) sendButton.addEventListener("click", sendMessage);
 
-        // ---------- Typing State ----------
+        // Typing state (unchanged)
         if (messageInput) {
             messageInput.addEventListener("input", () => {
                 if (!selectedUser || !signalRConnection) return;
-
                 if (!typingTimeout) {
                     fetch(`${API_BASE}/setTypingState`, {
                         method: "POST",
@@ -128,7 +145,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 } else {
                     clearTimeout(typingTimeout);
                 }
-
                 typingTimeout = setTimeout(() => {
                     fetch(`${API_BASE}/setTypingState`, {
                         method: "POST",
@@ -143,7 +159,7 @@ document.addEventListener("DOMContentLoaded", () => {
             });
         }
 
-        // ---------- SignalR ----------
+        // SignalR connect
         async function connectToSignalR() {
             try {
                 const res = await fetch(`${API_BASE}/negotiate`, {
@@ -155,6 +171,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 });
 
                 const connectionInfo = await handleApiResponse(res);
+                console.debug("[connectToSignalR] connectionInfo:", connectionInfo);
+
                 if (!connectionInfo?.url || !connectionInfo?.accessToken) {
                     console.error("SignalR negotiation failed:", connectionInfo);
                     return;
@@ -187,23 +205,20 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         }
 
-        // ---------- Render Messages ----------
         function renderMessage(msg) {
             const msgDiv = document.createElement("div");
             msgDiv.classList.add("message", msg.sender === currentUser.email ? "sent" : "received");
             const senderName = userMap[msg.sender] || msg.sender;
-
             let messageHTML = "";
             if (msg.message) messageHTML += `<span>${msg.message}</span>`;
             if (msg.fileUrl) {
                 messageHTML += ` <a href="${msg.fileUrl}" target="_blank" download>📎 ${msg.fileName || "File"}</a>`;
             }
-
             msgDiv.innerHTML = `<strong>${senderName}:</strong> ${messageHTML}`;
             chatMessages.appendChild(msgDiv);
         }
 
-        // ---------- Load Users ----------
+        // Users and message loading
         async function loadUsers() {
             try {
                 const res = await fetch(`${API_BASE}/getUsers`, {
@@ -211,7 +226,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 });
                 const users = await handleApiResponse(res);
                 if (!users) return;
-
                 userMap = {};
                 userListEl.innerHTML = "";
                 users.forEach(user => {
@@ -242,7 +256,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 }).catch(err => console.error("Error sending typing state:", err));
                 typingTimeout = null;
             }
-
             selectedUser = user;
             chatHeader.innerText = `Chat with ${user.name}`;
             document.getElementById("chat-placeholder").style.display = "none";
@@ -253,7 +266,6 @@ document.addEventListener("DOMContentLoaded", () => {
             loadMessageHistory();
         }
 
-        // ---------- Load Message History ----------
         async function loadMessageHistory() {
             if (!selectedUser) return;
             try {
@@ -269,7 +281,7 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         }
 
-        // ---------- Send Message ----------
+        // Send message (SAS flow is used here)
         async function sendMessage() {
             const text = messageInput.value.trim();
             const file = document.getElementById("fileInput").files[0];
@@ -288,7 +300,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 chatMessages.scrollTop = chatMessages.scrollHeight;
 
                 try {
-                    // === NEW: request SAS and upload directly ===
                     const sasRes = await fetch(`${API_BASE}/getUploadSas`, {
                         method: "POST",
                         headers: {
@@ -299,6 +310,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     });
 
                     const sasData = await handleApiResponse(sasRes);
+                    console.debug("[sendMessage] sasData:", sasData);
                     if (!sasRes.ok || !sasData?.uploadUrl) {
                         throw new Error(sasData?.message || "Failed to get upload URL");
                     }
@@ -333,7 +345,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 if (tempMsg) tempMsg.remove();
             }
 
-            // Send chat message
             try {
                 await fetch(`${API_BASE}/sendMessage`, {
                     method: "POST",
@@ -368,7 +379,7 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         }
 
-        // ---------- Init ----------
+        // Init
         loadUsers();
         connectToSignalR();
     }
