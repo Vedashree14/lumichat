@@ -1,3 +1,4 @@
+const Busboy = require('busboy');
 const { BlobServiceClient, BlobSASPermissions, generateBlobSASQueryParameters, StorageSharedKeyCredential } = require('@azure/storage-blob');
 const { verifyToken } = require('../shared/auth');
 
@@ -5,6 +6,7 @@ const containerName = 'uploads';
 
 module.exports = async function (context, req) {
     try {
+        // Authenticate
         verifyToken(req);
 
         const connectionString = process.env.AZURE_STORAGE_CONNECTION_STRING;
@@ -14,32 +16,57 @@ module.exports = async function (context, req) {
         const containerClient = blobServiceClient.getContainerClient(containerName);
         await containerClient.createIfNotExists();
 
-        if (!req.body || !req.body.file) {
-            context.res = { status: 400, body: { message: "No file uploaded" } };
+        // Parse multipart/form-data
+        if (!req.headers || !req.headers['content-type']) {
+            context.res = { status: 400, body: { message: 'Missing Content-Type header' } };
             return;
         }
 
-        const file = req.body.file; // browser FormData key: "file"
-        const fileName = file.name || `upload-${Date.now()}`;
-        const fileBuffer = Buffer.from(await file.arrayBuffer());
-        const blockBlobClient = containerClient.getBlockBlobClient(fileName);
+        const busboy = new Busboy({ headers: req.headers });
+        let fileBuffer = null;
+        let fileName = null;
+        let mimeType = null;
 
-        await blockBlobClient.uploadData(fileBuffer, { blobHTTPHeaders: { blobContentType: file.type || 'application/octet-stream' } });
+        await new Promise((resolve, reject) => {
+            busboy.on('file', (fieldname, fileStream, info) => {
+                fileName = info.filename || `upload-${Date.now()}`;
+                mimeType = info.mimeType || 'application/octet-stream';
+                const chunks = [];
+
+                fileStream.on('data', (data) => chunks.push(data));
+                fileStream.on('end', () => {
+                    fileBuffer = Buffer.concat(chunks);
+                });
+                fileStream.on('error', reject);
+            });
+
+            busboy.on('finish', resolve);
+            busboy.on('error', reject);
+
+            // feed rawBody to Busboy
+            if (req.rawBody) busboy.end(req.rawBody);
+            else reject(new Error('No rawBody found in request'));
+        });
+
+        if (!fileBuffer || !fileName) {
+            context.res = { status: 400, body: { message: 'No file uploaded' } };
+            return;
+        }
+
+        const blockBlobClient = containerClient.getBlockBlobClient(fileName);
+        await blockBlobClient.uploadData(fileBuffer, { blobHTTPHeaders: { blobContentType: mimeType } });
 
         // Generate SAS URL
-        const { accountName, accountKey } = (() => {
-            const m1 = connectionString.match(/AccountName=([^;]+)/i);
-            const m2 = connectionString.match(/AccountKey=([^;]+)/i);
-            return { accountName: m1[1], accountKey: m2[1] };
-        })();
-
+        const accountName = connectionString.match(/AccountName=([^;]+)/i)[1];
+        const accountKey = connectionString.match(/AccountKey=([^;]+)/i)[1];
         const credential = new StorageSharedKeyCredential(accountName, accountKey);
+
         const sasToken = generateBlobSASQueryParameters({
             containerName,
             blobName: fileName,
             permissions: BlobSASPermissions.parse('r'),
             startsOn: new Date(),
-            expiresOn: new Date(Date.now() + 60*60*1000)
+            expiresOn: new Date(Date.now() + 60 * 60 * 1000)
         }, credential).toString();
 
         const sasUrl = `${blockBlobClient.url}?${sasToken}`;
